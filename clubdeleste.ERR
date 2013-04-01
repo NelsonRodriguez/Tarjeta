@@ -1,0 +1,80 @@
+Compilando d:\trabajos\tarjeta\prgvarios.prg
+csql3="select alltrim(c.nombre)+' '+iif(alltrim(u.cuotas)='1/ 1' and len(alltrim(cuotas))=4 or alltrim(u.cuotas)='1/1' and len(alltrim(cuotas))=3,space(5),u.cuotas) as nombre,u.item,c.extrapunto		from comercio c,(wtcu)u		where str(u.paisco,2)+str(u.comercio,5)+str(u.sucursal,1)=str(c.paisco,2)+str(c.comercio,5)+str(c.sucursal,1)		into cursor ucomer
+Error en la línea 3290: El comando contiene una frase o palabra clave no reconocida.
+res=SQLEXEC(n_handle,"select * from cupusu where ppais=?wpais and cod1_cli=?wogru and cod2_cli=?wousu and presenta<=?wfecha and tipo_doc='P' order by presenta limit 1","celus") IF res<=0
+Error en la línea 5291: Error de sintaxis.
+ENDIF 
+Error en la línea 5293: Falta una instrucción IF | ELSE | ENDIF.
+CATCH 
+Error en la línea 5321: Error de anidamiento.
+ENDTRY 
+Error en la línea 5323: Error de anidamiento.
+
+Programa d:\trabajos\tarjeta\prgvarios.prg tiene los siguientes errores:
+    Desconocido MIACUMU - Indefinido
+    Desconocido GRACIASCORING - Indefinido
+
+Menú d:\trabajos\tarjeta\menuceste.mnx tiene los siguientes errores:
+    Formulario PROFESIONES - Indefinido
+    Formulario PARAMETROS - Indefinido
+
+Formulario d:\trabajos\tarjeta\fcomercios.scx tiene los siguientes errores:
+    Formulario EXCLUFAC - Indefinido
+    Formulario COMCUOTA - Indefinido
+    Formulario COMCUOROU - Indefinido
+    Formulario GETFACOMER - Indefinido
+
+Formulario d:\trabajos\tarjeta\ingcupones.scx tiene los siguientes errores:
+    Formulario FCOTIZAS - Indefinido
+    Formulario BANDEJAC - Indefinido
+    Formulario FCONSCOMER - Indefinido
+    Formulario IMPORXLS - Indefinido
+
+Formulario d:\trabajos\tarjeta\facturasrou.scx tiene los siguientes errores:
+    Formulario FCOTIZAS - Indefinido
+    Formulario FCONSCOMER - Indefinido
+    Formulario BANFACTUROU - Indefinido
+
+Formulario d:\trabajos\tarjeta\leeprespos.scx tiene los siguientes errores:
+    Formulario FCOTIZAS - Indefinido
+    Formulario BANDELEC - Indefinido
+    Desconocido SENDVIAOUTLOOK - Indefinido
+
+Formulario d:\trabajos\tarjeta\estadous.scx tiene los siguientes errores:
+    Formulario FCOTIZAS - Indefinido
+    Desconocido CANPRES - Indefinido
+    Desconocido ESTADOCUENTA - Indefinido
+    Desconocido MIGRAVE - Indefinido
+    Desconocido CUENTAPUNTO - Indefinido
+    Formulario FICHAPUN - Indefinido
+    Formulario CEREOCTA - Indefinido
+    Formulario TRAMITAU - Indefinido
+    Formulario USUARIOS - Indefinido
+    Formulario AUTORIZA_ZONAL - Indefinido
+    Formulario CARGAIVR - Indefinido
+    Formulario UHISTORI - Indefinido
+    Formulario MOVSPL - Indefinido
+    Formulario CAMBIAMIN - Indefinido
+    Desconocido FCUPONUS - Indefinido
+    Formulario ADJUNTOS - Indefinido
+
+Programa d:\trabajos\tarjeta\procesarus_mejorado1.prg tiene los siguientes errores:
+    Desconocido MIACUMU - Indefinido
+
+Biblioteca de clases visuales d:\bibutil\clasgen.vcx tiene los siguientes errores:
+    Formulario INFORMES - Indefinido
+    Desconocido CEROS - Indefinido
+    Desconocido MYPAG - Indefinido
+    Desconocido MIRESPO - Indefinido
+    Desconocido DIMES - Indefinido
+    Desconocido MICONDIVA - Indefinido
+    Desconocido MIDIREC - Indefinido
+
+Biblioteca de clases visuales d:\bibutil\_multimedia.vcx tiene los siguientes errores:
+    Proc./Func. MAINHWND - Indefinido
+    Proc./Func. _WHTOHWND - Indefinido
+    Proc./Func. _WONTOP - Indefinido
+
+Biblioteca de clases visuales d:\bibutil\_base.vcx tiene los siguientes errores:
+    Programa SETOBJRF - Indefinido
+

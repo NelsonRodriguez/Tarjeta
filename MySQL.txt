@@ -1,0 +1,25 @@
+
+lcStringCnxRemoto = "DRIVER={MySQL ODBC 3.51 Driver};" + ;
+                    "SERVER=myhostrdg.dyndns.org;" + ;
+                    "PORT=3306;" + ;
+                    "UID=root;" + ;
+                    "PWD=rubengh;" + ;
+                    "DATABASE=tarjeta;" + ;
+                    "OPTIONS=131329;"
+
+
+lcStringCnxLocal = "DRIVER={MySQL ODBC 3.51 Driver};" + ;
+                   "SERVER=localhost;" + ;
+                   "UID=root;" + ;
+                   "PWD=clave;" + ;
+                   "DATABASE=booking;" + ;
+                   "OPTIONS=131329;"
+SQLSETPROP(0,"DispLogin" , 3 )
+lnHandle = SQLSTRINGCONNECT(lcStringCnxLocal)
+
+
+
+
+* Connect via an IP address SQL SERVER 2008
+Data Source=190.190.200.100,1433;Network Library=DBMSSOCN;Initial Catalog=myDataBase;
+            User ID=myUsername;Password=myPassword;

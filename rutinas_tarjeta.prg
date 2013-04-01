@@ -1,0 +1,1034 @@
+*-------------------------------------------------------------------------------------*
+PROCEDURE seteos
+
+CLEAR
+CLOSE ALL
+CLEAR ALL
+CLOSE DATABASES
+set talk off
+set exclu off
+set safety off
+SET CPDIALOG OFF 
+set multilocks on
+set confirm on
+set echo off
+set dele on
+set date british
+set century on
+set sysmenu off
+set hours to 24
+set status bar off
+set status off
+set sysformats on
+SET POINT TO "."
+SET ESCAPE OFF 
+
+*- cierro eventuales HANDLES abiertos-------------------------------------*
+close_hnd=ASQLHANDLES(vhnds)
+FOR t=1 TO close_hnd
+    SQLDISCONNECT(vhnds[t])
+NEXT 
+
+ DECLARE INTEGER ShellExecute IN shell32.dll ; 
+ INTEGER hndWin, ;
+ STRING cAction, ;
+ STRING cFileName, ;
+ STRING cParams, ;
+ STRING cDir, ;
+ INTEGER nShowWin
+
+
+RETURN 
+*-----------------------------------------------------------------------------------------*
+*----------- CONTROL MSWINSCK.OCX --------------------------------------------------------*
+PROCEDURE controles_winsck
+WAIT WINDOW "Creando Objetos..." NOWAIT 
+loRegistry = CREATEOBJECT("Registry")
+IF loRegistry.isKey("MSWinsock.Winsock.1")
+	TRY 
+	wform_socket=CREATEOBJECT("formsocket")
+	IF TYPE("wform_socket")="O"
+	   wip=wform_socket.pc_localip
+	   wform_socket.release
+	ELSE
+	   wip=UPPER(SYS(0))
+	ENDIF    
+
+	CATCH
+
+	    se_pudosck=registrar_mswinsck()
+	    IF !se_pudosck
+	       wip=UPPER(SYS(0))
+	    ELSE
+	       wform_socket=CREATEOBJECT("formsocket")
+	       IF TYPE("wform_socket")="O"
+	          wip=wform_socket.pc_localip
+	          wform_socket.release
+	       ELSE
+	          wip=UPPER(SYS(0))
+	       ENDIF    
+	    ENDIF 
+	ENDTRY 
+ELSE  && NO ESTABA - LO REGISTRO
+    se_pudosck=registrar_mswinsck()
+    IF !se_pudosck
+       wip=UPPER(SYS(0))
+    ELSE
+       wform_socket=CREATEOBJECT("formsocket")
+       IF TYPE("wform_socket")="O"
+          wip=wform_socket.pc_localip
+          wform_socket.release
+       ELSE
+          wip=UPPER(SYS(0))
+       ENDIF    
+    ENDIF 
+ENDIF 
+WAIT CLEAR  
+RETURN 	
+*-------------------------------------------------------------------------*
+PROCEDURE defino_unidades
+IF !DIRECTORY("H:\")  AND !"WIN7PC" $ UPPER(SYS(0)) AND !"RODRIGUEZNPC" $ UPPER(SYS(0)) && crear unidad
+   WshNetwork = CreateObject("WScript.Network")
+   wr=WshNetwork.MapNetworkDrive("H:", "\\SVR\DISCOSVR\ARCHIVOS",.f.)
+   WshNetwork = ""
+   RELEASE WshNetwork
+   
+   IF !DIRECTORY("H:\")
+      IF !DIRECTORY("D:\")
+         glouni="C:\"
+      ELSE
+         glouni="D:\"
+      ENDIF 
+   ELSE 
+      glouni="H:\"
+   ENDIF 
+ELSE 
+   IF "WIN7PC" $ UPPER(SYS(0))
+      glouni="D:\"
+   ELSE
+      glouni="H:\"
+   ENDIF 
+ENDIF 
+gloserver=.f.
+IF "SVR" $ UPPER(SYS(0))  && Estoy en el SERVIDOR????
+   glouni="D:\"
+   gloserver=.t.
+ENDIF    
+
+xporrol=SYS(5)+CURDIR() + "setnorol.txt"
+IF FILE(xporrol)
+*   WAIT WINDOW xporrol+" SI ENCONTRO"
+   glo_xroles=.f.
+ELSE 
+*   WAIT WINDOW xporrol+" NO ENCONTRO"
+ENDIF 
+**glo_xroles=.f.
+
+RETURN 
+*------------------------------------------------------------------------------------------------*
+*----- FORMSOCKET y Graficador ------------------------------------------------------------------*
+PROCEDURE controles 
+TRY 
+	wform_socket=CREATEOBJECT("formsocket")
+	wip=wform_socket.pc_localip
+	wform_socket.release
+
+CATCH TO oErr_2
+    *MESSAGEBOX("No Está Instalado Software Necesario",48,"Puede Continuar")
+    WAIT WINDOW "Software Adicional NO INSTALADO..."  TIMEOUT 2
+    wip=SYS(0)
+ENDTRY 
+******* VERIFICO SI ESTA EL CONTROL DE GRAFICACION INSTALADO ---------------*
+*!*	TRY 
+*!*	glo_graficar=.t.
+*!*	obj=createobject("FLPGRF.FlpGrfCtrl.1")
+*!*	if type("obj")="O"
+*!*	   release obj
+*!*	endif
+*!*	CATCH TO oLoc
+*!*	     glo_graficar=.f.
+*!*	ENDTRY 
+RETURN 
+*-------------------------------------------------------------------------------------*
+FUNCTION grabarlog(cfile,ctira,lvacio)
+LOCAL nhnd,nlargo,nwritten,nsize,lcierro,llf
+IF PARAMETERS()<2
+   RETURN .f.
+ENDIF
+cfile2=cfile
+lvacio=IIF(PARAMETERS()=2,.f.,lvacio)
+IF !FILE("&cfile2") OR lvacio
+   p=FCREATE(cfile)
+   IF p<0
+      RETURN .f.
+   ENDIF
+   FCLOSE(p)
+ENDIF
+nhnd=FOPEN(cfile,2)   
+IF nhnd<0
+   RETURN .f.
+ENDIF
+nsize=FSEEK(nhnd,0,2)
+llf=CHR(13)+CHR(10)
+nlargo=LEN(ctira+llf)
+nwritten=FWRITE(nhnd,ctira+llf)
+lcierro=FCLOSE(nhnd)
+IF !lcierro
+   RETURN .f.
+ENDIF
+RETURN .t.   
+*-------------------------------------------------------------------------------------------*
+*------------------------------------------------------------------------------------------*
+PROCEDURE errhand(merror, mess, mess1, mprog, mlineno,elarch)
+LOCAL arch as Character , lf as Character 
+arch=elarch
+lf=CHR(13)+CHR(10)
+grabarlog("D:\ERROR.LOG","* ------ RUTINA DE ERROR ---------* "+TTOC(DATETIME()))
+grabarlog("D:\ERROR.LOG",'Error Nro.: ' + LTRIM(STR(merror))+lf+;
+           'Mensaje: ' + mess +lf+;
+           'Línea con Error: ' + mess1+lf+;
+           'Nro.Línea Con Error: ' + LTRIM(STR(mlineno))+lf+;
+           'Programa: '+ mprog)
+IF merror=39
+   RETURN
+ENDIF
+   
+MESSAGEBOX('Error Nro.: ' + LTRIM(STR(merror))+lf+;
+           'Mensaje: ' + mess +lf+;
+           'Línea con Error: ' + mess1+lf+;
+           'Nro.Línea Con Error: ' + LTRIM(STR(mlineno))+lf+;
+           'Programa: '+ mprog)
+RETURN
+*---------------------------------------------------------------------------------------*
+FUNCTION grabo_bitacora_v2(cod_ope,p_ope,p_datos,cod_cli,cod_prop)
+LOCAL ok_salida,wdatos,wop,c_campos
+*------- GRABO BITACORA ---------------*
+TRY 
+
+ok_salida=.t.
+WUSUARIO=ALLTRIM(OAPP.username)
+WEQUIPO=ALLTRIM(oapp.winuser)+" / "+ALLTRIM(oapp.ip)+" / "+ALLTRIM(oapp.tarjeta)
+
+wop=p_ope
+wdatos=p_datos
+
+c_campos=ALLTRIM(STR(cod_ope,3))+",'"+wusuario+"','"+wop+"','"+wdatos+"','"+WEQUIPO+"',"+ALLTRIM(STR(cod_cli,7))+","+ALLTRIM(STR(cod_prop,7))
+
+whnd=oapp.hnd
+*-- Firma Liquidación ----------------------------------------------------------**
+csql0="BEGIN TRANSACTION "+CHR(13)+CHR(10)+;
+      "insert into bitacora (operacion, usuario, comentario, datos, equipo, cliente, propiedad) VALUES ("+c_campos+") "+CHR(13)+CHR(10)+;
+      "COMMIT TRANSACTION"
+      
+res1=SQLEXEC(whnd,csql0)
+IF res1<=0
+   AERROR(verr)
+   *MESSAGEBOX(STR(verr[1],7)+" "+verr[2],48,"FIRMA 1")
+   ok_salida=.f.
+   THROW "ERROR"
+ELSE
+*!*	    MESSAGEBOX("Grabado en Botacora Con Exito",64,"Todo OK")   
+   ok_salida=.t.
+ENDIF 
+
+CATCH TO  oErr
+    ok_salida=.f.
+ENDTRY 
+RETURN ok_salida 
+*--------------------------------------------------------------------------------*
+FUNCTION grabo_bitacora(p_ope,p_datos)
+LOCAL ok_salida,wdatos,wop,c_campos
+*------- GRABO BITACORA ---------------*
+TRY 
+
+ok_salida=.t.
+WUSUARIO=ALLTRIM(OAPP.username)
+WEQUIPO=ALLTRIM(oapp.winuser)+" / "+ALLTRIM(oapp.ip)+" / "+ALLTRIM(oapp.tarjeta)
+
+wop=p_ope
+wdatos=p_datos
+
+c_campos="'"+wusuario+"','"+wop+"','"+wdatos+"','"+WEQUIPO+"'"
+
+IF TYPE("oapp.hnd")<>"U"
+   whnd=oapp.hnd
+ELSE
+   * usar whnd
+ENDIF    
+*-- Firma Liquidación ----------------------------------------------------------**
+csql0="insert into bitacora (usuario, comentario, datos, equipo) VALUES ("+c_campos+") "
+res1=SQLEXEC(whnd,csql0)
+IF res1<=0
+   AERROR(verr)
+   *MESSAGEBOX(STR(verr[1],7)+" "+verr[2],48,"FIRMA 1")
+   ok_salida=.f.
+   THROW "ERROR"
+ELSE
+   *MESSAGEBOX("Grabado en Botacora Con Exito",64,"Todo OK")   
+   ok_salida=.t.
+ENDIF 
+
+CATCH TO  oErr
+    ok_salida=.f.
+    crlf=CHR(13)+CHR(10)
+    MsgErr="[  Error: ] " + STR(oErr.ErrorNo) + CRLF + ;
+    	   "[  Línea: ] " + STR(oErr.LineNo) + CRLF + ; 
+    	   "[  Mensaje: ] " + oErr.Message + CRLF + ; 
+    	   "[  Procedimiento: ] " + oErr.Procedure + CRLF + ; 
+    	   "[  Detalles: ] " + oErr.Details + CRLF + ; 
+    	   "[  StackLevel: ] " + STR(oErr.StackLevel) + CRLF + ; 
+    	   "[  Instrucción: ] " + oErr.LineContents 
+    	   
+    *MESSAGEBOX(msgerr,16,"ERROR")
+ENDTRY 
+RETURN ok_salida 
+*--------------------------------------------------------------------------------*
+FUNCTION grabo_navegar(p_ope,p_datos)
+LOCAL ok_salida,wdatos,wop,c_campos
+*------- GRABO BITACORA ---------------*
+TRY 
+
+ok_salida=.t.
+WUSUARIO=ALLTRIM(OAPP.username)
+WEQUIPO=ALLTRIM(oapp.winuser)+" / "+ALLTRIM(oapp.ip)+" / "+ALLTRIM(oapp.tarjeta)
+
+wop=p_ope
+wdatos=p_datos
+
+c_campos="'"+wusuario+"','"+wop+"','"+wdatos+"','"+WEQUIPO+"'"
+
+whnd=oapp.hnd
+*-- Firma Liquidación ----------------------------------------------------------**
+csql0="BEGIN TRANSACTION "+CHR(13)+CHR(10)+;
+      "insert into navegar (usuario, comentario, datos, equipo) VALUES ("+c_campos+") "+CHR(13)+CHR(10)+;
+      "COMMIT TRANSACTION"
+      
+res1=SQLEXEC(whnd,csql0)
+IF res1<=0
+   AERROR(verr)
+   *MESSAGEBOX(STR(verr[1],7)+" "+verr[2],48,"FIRMA 1")
+   ok_salida=.f.
+   THROW "ERROR"
+ELSE
+	*    MESSAGEBOX("Grabado en Botacora Con Exito",64,"Todo OK")   
+   ok_salida=.t.
+ENDIF 
+
+CATCH TO  oErr
+    ok_salida=.f.
+ENDTRY 
+RETURN ok_salida 
+*--------------------------------------------------------------------------------*
+********************************************************************************
+FUNCTION f_ulbackup_bases(phnd,cbase)
+LOCAL sale
+sale=CTOD("")
+csql="Select a.name,Backup_Date from master.dbo.sysdatabases a "+;
+	 "left join "+;
+     "(select database_name,max(backup_finish_date) backup_date "+;
+     "from msdb.dbo.backupset where backup_finish_date <= getdate() "+;
+     "group by database_name)  B on  a.name = b.database_name"
+
+res=SQLEXEC(phnd,csql,"ubackups")
+IF res<>1
+   AERROR(verr)
+   MESSAGEBOX(STR(verr[1],7)+" "+verr[2],16,"Error")
+   RETURN CTOD("")
+ENDIF
+
+SELECT ubackups
+LOCATE FOR ALLTRIM(UPPER(name))=UPPER(ALLTRIM(cbase))
+IF !eof()
+   sale=backup_date
+ENDIF 
+USE IN ubackups
+RETURN sale
+*------------------------------------------------------------------------------------------*
+FUNCTION es_administrador
+LOCAL lres1,lres2
+Declare Long IsUserAnAdmin in "shell32" 
+wop = IsUserAnAdmin()
+DO CASE 
+   CASE wop = 1
+       *MESSAGEBOX("YES")  
+       lres1=.t.
+   OTHERWISE 
+      *MESSAGEBOX("NO")
+       lres1=.f.
+ENDCASE 
+Declare Long IsNTAdmin In "advpack.dll" ;
+long dwReserved, ;
+long @lpdwReserved
+
+if IsNTAdmin(0,0)=1
+   *MESSAGEBOX("SI")
+   lres2=.t.
+ELSE
+   *MESSAGEBOX("NO")
+   lres2=.f.
+ENDIF    
+RETURN lres1
+*--------------------------------------------------------------------------------------
+*--------------------------------------------------------------------------------------*
+procedure misalida
+IF _screen.formcount = 0
+   wait wind "Saliendo del Sistema..." nowait
+   clear events
+   RETURN
+ELSE
+   MESSAGEBOX("Debe Cerrar Todos los Formularios Antes de Salir del sistema",48,"Salir del sistema")   
+ENDIF    
+*-------------------------------------------------------------------------------------------*
+procedure errorgeneral
+parameters merror,mmess,mmess1,mprog,mline
+do while txnlevel()<>0
+   rollback
+enddo   
+   messagebox("Error Número: "+str(merror,5)+chr(13)+chr(10)+;
+           "Mensaje: "+mmess+chr(13)+chr(10)+;
+           "MMESS1: "+mmess1+chr(13)+chr(10)+;
+           "Programa: "+mprog+chr(13)+chr(10)+;
+           "Línea: "+str(mline,5))
+if !"START_DURAN" $ mprog
+	oapp.salida=.t.
+   return to master
+else
+   return
+endif   
+*******************************************************************************
+PROCEDURE click_salir
+IF oapp.hnd<>0
+*   SQLDISCONNECT(oapp.hnd)
+ENDIF    
+_screen.Caption = "Centro Car S.R.L."
+CLOSE ALL 
+CLEAR EVENTS
+return
+*******************************************************************************
+PROCEDURE verifico_backups
+
+*!*	wulbackup=f_ulbackup_bases(oapp.hnd,"TARJETA")
+*!*	IF !EMPTY(wulbackup) AND !ISNULL(wulbackup) && Más de 10 días ultimo respaldo
+*!*		IF ISNULL(wulbackup) OR (DATE()-TTOD(wulbackup))>10
+*!*	   	   lgrabo=grabo_bitacora("Respaldo RETRASADO: "+TTOC(wulbackup),ALLTRIM(oapp.username))
+*!*		   MESSAGEBOX("Ultimo Respaldo Realizado: "+TTOC(wulbackup)+CHR(13)+CHR(10)+;
+*!*		              "Se Aconseja Realizar una Tarea de Respaldo de la Base de Datos",48,"ALERTA")
+*!*			TRY 
+*!*				WAIT WINDOW "Estableciendo Entorno..." NOWAIT 
+*!*				IF IsInterNetActive ("http://www.google.com") 
+*!*				   ****WAIT WINDOW "CORREO RESPALDO"
+*!*				   okmail=correo_smtp_google("Club del Este","NO SE ESTAN HACIENDO RESPALDOS - Sistema de Gestión"+CHR(13)+CHR(10)+;
+*!*				          "Días Sin Respaldo: "+STR(DATE()-TTOD(wulbackup),6)+CHR(13)+CHR(10)+;
+*!*				          "Usuario: "+oapp.reguser.usuario+;
+*!*				           CHR(13)+CHR(10)+"PC: "+UPPER(SYS(0)),"Advertencia RESPALDOS ")
+*!*				   IF okmail
+*!*				     *--- Correo se envió correctamente 
+*!*				   ENDIF 
+*!*				ENDIF 
+*!*				WAIT CLEAR 
+*!*			CATCH
+*!*			    WAIT CLEAR 
+*!*			    ****WAIT WINDOW "ERROR CORREO"
+*!*			ENDTRY 
+*!*		ENDIF 
+*!*	ENDIF 
+RETURN 
+****************************************************************************************************************************************
+PROCEDURE correo_ingreso_sistema
+local linea
+linea=CHR(13)+CHR(10)
+lgrabo=grabo_bitacora("Ingresó al Sistema",ALLTRIM(oapp.reguser.usuario))
+
+IF !"RODRIGUEZNPC" $ UPPER(SYS(0)) AND !"WIN7PC" $ UPPER(SYS(0))
+    *---- Correo Por Ingreso al Sistema ---------------------------------------------------------------------------*
+	WAIT WINDOW "Preparando Base de Datos..." AT 10,100 NOWAIT 
+	TRY 
+		IF glo_mailing && si está el parámetro de Mandar Mail en Vardadero
+			IF IsInterNetActive ("http://www.google.com") && si tengo internet
+			   okmail=correo_smtp_google("Club del Este","Ingreso al Sistema - Sistema de Gestión"+LINEA+"Usuario: "+;
+			          oapp.reguser.usuario+LINEA+"PC: "+UPPER(SYS(0)),"Notificación de Ingreso al Sistema ","")
+			   IF okmail
+			     *- correo enviado correctamente
+			   ENDIF 
+			ENDIF 
+		ENDIF 
+	CATCH
+	ENDTRY 
+ENDIF 
+*---------------------------------------------------------------------------------------------------------*
+FUNCTION ges_conecto
+LOCAL wserver,lsaleok
+lsaleok=.t.
+
+TRY 
+
+********** CONEXION A LA BASE DE DATOS -------------------------------------------------------------------------*
+oapp.sa_connect=oapp.meconecto()
+IF EMPTY(oapp.sa_connect)
+   MESSAGEBOX("String de Conexion NO SE PUDO DEFINIR: "+oapp.dbms,48,"VERIFIQUE")
+   THROW "NORMAL"
+ENDIF 
+*oapp.sa_connect="DATABASE=mytarjeta;DSN=TARJETA_MYSQL;OPTION=0;PWD=rubengh;PORT=3306;SERVER="+'localhost'+";UID=root"
+res=SQLSTRINGCONNECT(oapp.sa_connect)
+IF res<=0
+   MESSAGEBOX("NO SE PUDO ESTABLECER CONEXION CON LA BASE DE DATOS: "+oapp.dbms,48,"SE CANCELA")
+   THROW "NORMAL"
+ENDIF 
+n_handle=res
+oapp.hnd=res
+    
+oapp.dirtrabajo=""  && directorio que DEBE ver el usuario
+oapp.cntventanas=0
+	
+CATCH TO oErr WHEN oErr.UserValue="NORMAL"
+       lsaleok=.f.
+CATCH TO oErr WHEN oErr.UserValue="NORMAL"
+       lsaleok=.f.
+ENDTRY 
+RETURN lsaleok
+*---------------------------------------------------------------------------------------------------------*
+FUNCTION passopt(uusr,uform)
+LOCAL lhab,xusr,xform
+lhab=.t.  && por default es NO HABILITAR OPCION DEL MENU
+xusr=uusr
+xform=uform
+TRY 
+
+IF oapp.hnd=0
+   THROW "NORMAL"
+ENDIF 
+IF USED("curxx")
+   USE IN curxx
+ENDIF    
+res=SQLEXEC(oapp.hnd,"select a.* from rolform a left join rolusr b on b.usuario=?xusr where a.formulario=?xform","curxx")
+IF res<=0
+   MESSAGEBOX("Problemas Analizando Permisos",48,"Verifique")
+   THROW "NORMAL"
+ENDIF 
+IF !EOF("curxx")
+   lhab=.f.
+ENDIF 
+CATCH TO oErr WHEN oErr.UserValue="NORMAL"
+       lhab=.t.
+CATCH TO oErr WHEN oErr.UserValue="NORMAL"
+       lhab=.t.
+ENDTRY 
+IF USED("curxx")
+   USE IN curxx
+ENDIF    
+RETURN lhab
+*---------------------------------------------------------------------------------------------------------*
+FUNCTION cargo_formus(phnd,pname,pdet,pcap)
+LOCAL csql,lfor
+
+lfor=.t.
+TRY 
+
+IF USED("curx")
+   USE IN curx 
+ENDIF 
+res=SQLEXEC(phnd,"select * from formus where fnombre=?pname","curx")
+IF res<=0
+   THROW "NORMAL"
+ENDIF 
+
+IF EOF("curx")
+   * Alta del Formulario
+   csql="insert formus (fnombre,detalle,fcaption) values ('"+ALLTRIM(pname)+"','"+ALLTRIM(pdet)+"','"+ALLTRIM(pcap)+"')"
+   res=SQLEXEC(phnd,csql)
+   IF res<=0
+      AERROR(verr)
+      MESSAGEBOX(STR(verr[1],7)+" "+verr[2],16,"Error")
+      THROW "NORMAL"
+   ENDIF 
+ELSE
+   * Modifico 
+   csql="update formus set detalle='"+ALLTRIM(pdet)+"',fcaption='"+ALLTRIM(pcap)+"' where fnombre=?pname"
+   res=SQLEXEC(phnd,csql)
+   IF res<=0
+      AERROR(verr)
+      MESSAGEBOX(STR(verr[1],7)+" "+verr[2],16,"Error")
+      THROW "NORMAL"
+   ENDIF 
+ENDIF 
+IF USED("curx")
+   USE IN curx 
+ENDIF 
+
+CATCH TO rErr WHEN rERR.UserValue<>"NORMAL"
+	IF USED("curx")
+	   USE IN curx 
+	ENDIF 
+	lfor=.f.
+    crlf=CHR(13)+CHR(10)
+    MsgErr="[  Error: ] " + STR(rErr.ErrorNo) + CRLF + ;
+    	   "[  Línea: ] " + STR(rErr.LineNo) + CRLF + ; 
+    	   "[  Mensaje: ] " + rErr.Message + CRLF + ; 
+    	   "[  Procedimiento: ] " + rErr.Procedure + CRLF + ; 
+    	   "[  Detalles: ] " + rErr.Details + CRLF + ; 
+    	   "[  StackLevel: ] " + STR(rErr.StackLevel) + CRLF + ; 
+    	   "[  Instrucción: ] " + rErr.LineContents 
+    	   
+    MESSAGEBOX(msgerr,16,"ERROR")
+    	   	
+CATCH TO rErr WHEN rERR.UserValue="NORMAL"
+	lfor=.f.
+
+ENDTRY 
+RETURN lfor
+*---------------------------------------------------------------------------------------------------------*
+FUNCTION tomo_cotizacion(phnd)
+LOCAL lok,lop
+lok=.t.
+lop=1
+
+TRY 
+IF USED("curfch")
+   USE IN curfch
+ENDIF    
+
+wfch=DATE()
+res=SQLEXEC(phnd,"select * from cotizaciones where fecha=?wfch","curfch")
+IF res<=0
+   THROW "NORMAL"
+ENDIF 
+IF !EOF("curfch")  && ya hay cotizacion del día
+   USE IN curfch
+   lop=2
+   THROW "NORMAL"
+ENDIF 
+*!*	* hay que cargar cotizacion de la fecha
+*!*	retok=.f.
+*!*	DO FORM get_cotizacion TO retok
+*!*	lok=retok
+
+CATCH TO rErr WHEN rERR.UserValue<>"NORMAL"
+	IF USED("curx")
+	   USE IN curx 
+	ENDIF 
+	lok=.f.
+    crlf=CHR(13)+CHR(10)
+    MsgErr="[  Error: ] " + STR(rErr.ErrorNo) + CRLF + ;
+    	   "[  Línea: ] " + STR(rErr.LineNo) + CRLF + ; 
+    	   "[  Mensaje: ] " + rErr.Message + CRLF + ; 
+    	   "[  Procedimiento: ] " + rErr.Procedure + CRLF + ; 
+    	   "[  Detalles: ] " + rErr.Details + CRLF + ; 
+    	   "[  StackLevel: ] " + STR(rErr.StackLevel) + CRLF + ; 
+    	   "[  Instrucción: ] " + rErr.LineContents 
+    	   
+    MESSAGEBOX(msgerr,16,"ERROR")
+    	   	
+CATCH TO rErr WHEN rERR.UserValue="NORMAL"
+    IF lop<>2
+       lok=.f.
+    ENDIF 
+
+ENDTRY 
+RETURN lok
+*---------------------------------------------------------------------------------------------------------*
+FUNCTION valido_hora(phr)
+** comprueba que la hora indicada sea consistente
+LOCAL xchr
+xchr=strzero(phr,5,2)
+pxhrs=INT(VAL(LEFT(xchr,AT(",",xchr)-1))) && horas
+pxmns=INT(VAL(RIGHT(xchr,RAT(",",xchr)-1))) && horas
+IF pxhrs<0 && no negativos
+   RETURN .f.
+ENDIF 
+IF pxhrs>23 && no m{as allá de 23 hrs
+   RETURN .f.
+ENDIF 
+IF pxmns>59 && no acepto
+   RETURN .f.
+ENDIF 
+RETURN .t.
+*---------------------------------------------------------------------------------------------------------*
+FUNCTION cambio_modelos
+LOCAL lok
+lok=.t.
+
+TRY 
+MESSAGEBOX("Proceso MODELOS",64,"PULSE ENTER")
+
+whnd=n_handle
+
+
+csql="select * from juanc"
+res=SQLEXEC(whnd,csql,"curveh")
+IF res<=0
+   AERROR(verr)
+   MESSAGEBOX(STR(verr[1],7)+" "+verr[2],48,"ERROR")
+   THROW "NORMAL"
+ENDIF 
+
+SELECT curveh
+GO TOP 
+DO WHILE !EOF()
+   wmarca=marca
+   wmod_now=codmodelo
+   wdeberia=deberiamod
+   WAIT WINDOW "Procesando Modelo..."+ALLTRIM(STR(wmod_now)) nowait
+   
+   csql2="update vehiculo set codmodelo=?wdeberia where codmarca=?wmarca and codmodelo=?wmod_now"
+   res=SQLEXEC(whnd,csql2)
+   IF res<=0
+	   AERROR(verr)
+	   MESSAGEBOX(STR(verr[1],7)+" "+verr[2],48,"ERROR")
+	   SKIP 
+	   LOOP 
+   ENDIF 
+   
+   SKIP 
+ENDDO 
+
+WAIT WINDOW "Eliminado Sobrantes..." NOWAIT 
+csql3="delete marcas where marca not in (select distinct codmarca from vehiculo)"
+csql4="delete modelos where not exists (select distinct codmarca,codmodelo from vehiculo b where modelos.modelo=b.codmodelo and modelos.marca=b.codmarca)"
+res=SQLEXEC(whnd,csql3)
+IF res<=0
+   AERROR(verr)
+   MESSAGEBOX(STR(verr[1],7)+" "+verr[2],48,"ERROR SQL3")
+   THROW "NORMAL"
+ENDIF 
+res=SQLEXEC(whnd,csql4)
+IF res<=0
+   AERROR(verr)
+   MESSAGEBOX(STR(verr[1],7)+" "+verr[2],48,"ERROR SQL4")
+   THROW "NORMAL"
+ENDIF 
+
+
+WAIT CLEAR 
+  
+CATCH TO rErr WHEN rERR.UserValue<>"NORMAL"
+	IF USED("curveh")
+	   USE IN curveh
+	ENDIF 
+	lok=.f.
+    crlf=CHR(13)+CHR(10)
+    MsgErr="[  Error: ] " + STR(rErr.ErrorNo) + CRLF + ;
+    	   "[  Línea: ] " + STR(rErr.LineNo) + CRLF + ; 
+    	   "[  Mensaje: ] " + rErr.Message + CRLF + ; 
+    	   "[  Procedimiento: ] " + rErr.Procedure + CRLF + ; 
+    	   "[  Detalles: ] " + rErr.Details + CRLF + ; 
+    	   "[  StackLevel: ] " + STR(rErr.StackLevel) + CRLF + ; 
+    	   "[  Instrucción: ] " + rErr.LineContents 
+    	   
+    MESSAGEBOX(msgerr,16,"ERROR")
+    	   	
+CATCH TO rErr WHEN rERR.UserValue="NORMAL"
+       lok=.f.
+ENDTRY 
+RETURN lok
+*-----------------------------------------------------------------------------------------------------*
+FUNCTION acceso_ok(xhnd,xuser,xfrm)
+LOCAL lpuede,rErr
+lpuede=.f.
+
+TRY 
+
+csql="select a.* from roluser a "+;
+     "left join rolform b on b.codrol=a.codrol "+;
+     "where usuario=?xuser and b.formulario=?xfrm"
+res=SQLEXEC(xhnd,csql,"sysaccess")
+IF res<=0
+   THROW "NORMAL" 
+ENDIF      
+IF !EOF("sysaccess") OR !glo_xroles
+   lpuede=.t.
+ENDIF       
+
+IF USED("sysaccess")
+   USE IN sysaccess
+ENDIF 
+
+CATCH TO rErr WHEN rERR.UserValue<>"NORMAL"
+    crlf=CHR(13)+CHR(10)
+    MsgErr="[  Error: ] " + STR(rErr.ErrorNo) + CRLF + ;
+    	   "[  Línea: ] " + STR(rErr.LineNo) + CRLF + ; 
+    	   "[  Mensaje: ] " + rErr.Message + CRLF + ; 
+    	   "[  Procedimiento: ] " + rErr.Procedure + CRLF + ; 
+    	   "[  Detalles: ] " + rErr.Details + CRLF + ; 
+    	   "[  StackLevel: ] " + STR(rErr.StackLevel) + CRLF + ; 
+    	   "[  Instrucción: ] " + rErr.LineContents 
+    	   
+    MESSAGEBOX(msgerr,16,"ERROR PARA ACCEDER AL FORMULARIO")
+    	   	
+CATCH TO rErr WHEN rERR.UserValue="NORMAL"
+ENDTRY 
+RETURN lpuede
+*-----------------------------------------------------------------------------------------------------*
+function digiver(ogru,ousu,otitu,oplas,oiso)
+*- Devuelve el Digito Verificador -----------------*
+local sale,loiso
+dimension  rvec(15)
+
+TRY 
+
+for i=1 to 15
+	rvec(i)=0
+next	
+loiso=oiso
+sale=0
+osgru=strtran(str(ogru,2)," ","0")
+osusu=strtran(str(ousu,5)," ","0")
+ostitu=strtran(str(otitu,1)," ","0")
+osplas=strtran(str(oplas,1)," ","0")
+unotar=oiso+osgru+osusu+ostitu+osplas
+for t=1 to len(unotar)
+    if mod(t,2)<>0
+       rvec[t]=int(val(substr(unotar,t,1)))*2
+    else
+       rvec[t]=int(val(substr(unotar,t,1)))
+    endif
+next
+pbolsa=0
+for t=1 to 15
+    if rvec[t]<10
+       pbolsa=pbolsa+rvec[t]
+    else
+       pbolsa=pbolsa+int(val(substr(str(rvec[t],2),1,1)))+int(val(substr(str(rvec[t],2),2,1)))
+    endif
+next
+eldigito=mod(pbolsa,10)
+if eldigito<>0
+   eldigito=10-eldigito
+endif
+sale=str(eldigito,1)
+
+CATCH TO rErr WHEN rERR.UserValue<>"NORMAL"
+    crlf=CHR(13)+CHR(10)
+    sale=""
+    MsgErr="[  Error: ] " + STR(rErr.ErrorNo) + CRLF + ;
+    	   "[  Línea: ] " + STR(rErr.LineNo) + CRLF + ; 
+    	   "[  Mensaje: ] " + rErr.Message + CRLF + ; 
+    	   "[  Procedimiento: ] " + rErr.Procedure + CRLF + ; 
+    	   "[  Detalles: ] " + rErr.Details + CRLF + ; 
+    	   "[  StackLevel: ] " + STR(rErr.StackLevel) + CRLF + ; 
+    	   "[  Instrucción: ] " + rErr.LineContents 
+    	   
+    MESSAGEBOX(msgerr,16,"RUTINA DIGIVER")
+    	   	
+CATCH TO rErr WHEN rERR.UserValue="NORMAL"
+    sale=""
+ENDTRY 
+
+return(sale)
+******************************************************************************
+function cadicional(xhnd,wnumerado)
+local area
+
+TEXT TO csql1 NOSHOW 
+SELECT A.cod1_cli, A.cod2_cli, A.cod3_cli,A.cod4_cli, digiver(a.cod1_cli,a.cod2_cli,a.cod3_cli,a.cod4_cli) as digito,A.apellidos, A.nombres, 
+       A.f_alta, A.vence, A.numerado, A.nro_item
+FROM  usuarios  u INNER JOIN adicional  a ON  U.numerado = A.numerado
+WHERE U.numerado = ?wnumerado
+
+ENDTEXT 
+
+*res=SQLEXEC(xhnd,
+
+if !used(latabla)
+	wt=wcamino+latabla
+	sele cadicional
+	copy to (wt)
+	use (wt) in 0 exclu
+else
+	sele (latabla)
+	zap
+	sele cadicional
+	scan all
+		SCATTER MEMVAR
+		INSERT INTO (latabla) FROM MEMVAR
+	endscan
+endif	
+return
+******************************************************************************
+function cusugaran
+parameters wnumerado,latabla
+local area
+area=select()
+SELECT Garantes.tipo_doc, Garantes.documento, Garantes.apellidos,;
+  Garantes.nombres, Garantes.domicilio, Garantes.telefono,;
+  Garantes.numerado, Garantes.nro_item,usugaran.nroitem as item;
+ FROM  tarjeta!usuarios INNER JOIN tarjeta!usugaran;
+    INNER JOIN tarjeta!garantes ;
+    ON  Usugaran.tipo_doc = Garantes.tipo_doc and usugaran.documento =Garantes.documento ;
+    ON  Usuarios.numerado = Usugaran.numerado;
+ WHERE Usuarios.numerado = wnumerado;
+ INTO cursor cusugaran
+ 
+if !used(latabla)
+	wt=wcamino+latabla
+	sele cusugaran
+	copy to (wt)
+	use (wt) in 0 exclu
+else
+	sele (latabla)
+	zap
+	sele cusugaran
+	scan all
+		SCATTER MEMVAR
+		INSERT INTO (latabla) FROM MEMVAR
+	endscan
+endif	
+select (area)
+return
+*******************************************************************************
+function cusutraba
+parameters wnumerado,latabla
+local area
+area=select()
+SELECT  usutra.traempnom, usutra.traempdir,;
+	usutra.tratel,usutra.traempcgo , usutra.trafecing, usutra.trafecegr,;
+	usutra.trasal,usutra.nroitem, usutra.numerado,usutra.tipo_doc, usutra.documento ;
+ FROM  tarjeta!usuarios INNER JOIN tarjeta!usutra;
+   ON  Usuarios.numerado = Usutra.numerado;
+ WHERE Usuarios.numerado = wnumerado;
+ INTO cursor cusutra
+ 
+if !used(latabla)
+	wt=wcamino+latabla
+	sele cusutra
+	copy to (wt)
+	use (wt) in 0 exclu
+else
+	sele (latabla)
+	zap
+	sele cusutra
+	scan all
+		SCATTER MEMVAR
+		INSERT INTO (latabla) FROM MEMVAR
+	endscan
+endif	
+select (area)
+return
+*******************************************************************************
+function cusuprop
+parameters wnumerado,latabla
+local area
+area=select()
+SELECT  usuprop.propiedad,usuprop.proppad,;
+	usuprop.propval,usuprop.moneda, usuprop.propver ,;
+	usuprop.nroitem, usuprop.numerado,usuprop.tipo_doc, usuprop.documento ;
+ FROM  tarjeta!usuarios INNER JOIN tarjeta!usuprop;
+   ON  Usuarios.numerado = usuprop.numerado;
+ WHERE Usuarios.numerado = wnumerado;
+ INTO cursor cusuprop
+ 
+if !used(latabla)
+	wt=wcamino+latabla
+	sele cusuprop
+	copy to (wt)
+	use (wt) in 0 exclu
+else
+	sele (latabla)
+	zap
+	sele cusuprop
+	scan all
+		SCATTER MEMVAR
+		INSERT INTO (latabla) FROM MEMVAR
+	endscan
+endif	
+select (area)
+return
+*******************************************************************************
+function quegracia(wgr)
+local wgra,wgrup,area
+area=SELECT()
+wgra=0
+res=SQLEXEC(n_handle,"select * from parametros","curparam")
+IF res<=0
+ENDIF 
+IF !EOF("curparam")
+    wgra=parametros.grapag
+ENDIF     
+IF USED("curparam")
+   USE IN curparam 
+ENDIF 
+SELECT (area)
+return (wgra)
+*************************************************************************
+function costoser(wn,wlet,wfechata,wgr)
+local dx,area,wu
+
+TRY 
+
+*---wn nacion, wlet (tarjeta), wfechata fecha de ingreso tarjeta
+IF TYPE('wfechata')='T'
+	WFECHATA=TTOD(wfechata)
+ENDIF
+dx=0
+area=select()
+store 0.00 to ifin,ifid,pfin
+res=SQLEXEC(n_handle,"select * from costoser where instr(tarjeta,upper(trim(?wlet)))","ccosto")
+IF res<=0
+   AERROR(verr)
+   MESSAGEBOX(STR(verr[1],7)+" "+verr[2],16,"Error COSTOSER")
+   THROW "NORMAL"
+ENDIF 
+if !EOF("ccosto")
+	dx=ccosto.importe
+    ifin=ccosto.int_fin
+	ifid=ccosto.int_fid
+    pfin=ccosto.por_fin
+ENDIF 
+if wfechata>date()-90 and nacion=1 and wglobaiso<> '606164' and wgr<>11
+    dx=0
+ENDIF 
+use in ccosto
+sele (area)
+
+CATCH TO rErr WHEN rERR.UserValue<>"NORMAL"
+    crlf=CHR(13)+CHR(10)
+    dx=0
+    MsgErr="[  Error: ] " + STR(rErr.ErrorNo) + CRLF + ;
+    	   "[  Línea: ] " + STR(rErr.LineNo) + CRLF + ; 
+    	   "[  Mensaje: ] " + rErr.Message + CRLF + ; 
+    	   "[  Procedimiento: ] " + rErr.Procedure + CRLF + ; 
+    	   "[  Detalles: ] " + rErr.Details + CRLF + ; 
+    	   "[  StackLevel: ] " + STR(rErr.StackLevel) + CRLF + ; 
+    	   "[  Instrucción: ] " + rErr.LineContents 
+    	   
+    MESSAGEBOX(msgerr,16,"RUTINA DIGIVER")
+    	   	
+CATCH TO rErr WHEN rERR.UserValue="NORMAL"
+    dx=0    
+ENDTRY 
+return (dx)
+*****************************************************************************
+function elpais(wgrp)
+local area,wpp,wugru
+area=select()
+wpp=0
+TRY 
+
+res=SQLEXEC(n_handle,"select * from grupos where grupo=?wgrp","vgrup")
+IF res<=0
+   AERROR(verr)
+   MESSAGEBOX(STR(verr[1],7)+" "+verr[2],16,"Error COSTOSER")
+   THROW "NORMAL"
+ENDIF 
+if !EOF("vgrup")
+	wpp=vgrup.ppais
+endif
+use in vgrup
+sele (area)
+CATCH TO rErr WHEN rERR.UserValue<>"NORMAL"
+    crlf=CHR(13)+CHR(10)
+    MsgErr="[  Error: ] " + STR(rErr.ErrorNo) + CRLF + ;
+    	   "[  Línea: ] " + STR(rErr.LineNo) + CRLF + ; 
+    	   "[  Mensaje: ] " + rErr.Message + CRLF + ; 
+    	   "[  Procedimiento: ] " + rErr.Procedure + CRLF + ; 
+    	   "[  Detalles: ] " + rErr.Details + CRLF + ; 
+    	   "[  StackLevel: ] " + STR(rErr.StackLevel) + CRLF + ; 
+    	   "[  Instrucción: ] " + rErr.LineContents 
+    	   
+    MESSAGEBOX(msgerr,16,"RUTINA ELPAIS")
+    wpp=0
+    	   	
+CATCH TO rErr WHEN rERR.UserValue="NORMAL"
+    wpp=0
+ENDTRY 
+return  wpp
+************************************************************************

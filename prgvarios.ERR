@@ -1,0 +1,10 @@
+csql3="select alltrim(c.nombre)+' '+iif(alltrim(u.cuotas)='1/ 1' and len(alltrim(cuotas))=4 or alltrim(u.cuotas)='1/1' and len(alltrim(cuotas))=3,space(5),u.cuotas) as nombre,u.item,c.extrapunto		from comercio c,(wtcu)u		where str(u.paisco,2)+str(u.comercio,5)+str(u.sucursal,1)=str(c.paisco,2)+str(c.comercio,5)+str(c.sucursal,1)		into cursor ucomer
+Error in line 3310: Command contains unrecognized phrase/keyword.
+res=SQLEXEC(n_handle,"select * from cupusu where ppais=?wpais and cod1_cli=?wogru and cod2_cli=?wousu and presenta<=?wfecha and tipo_doc='P' order by presenta limit 1","celus") IF res<=0
+Error in line 5347: Syntax error.
+ENDIF 
+Error in line 5349: An IF | ELSE | ENDIF statement is missing.
+CATCH 
+Error in line 5377: Nesting error.
+ENDTRY 
+Error in line 5379: Nesting error.

@@ -1,0 +1,7 @@
+RESOURCE=OFF
+TITLE=Club del Este 2013
+Command=do icono.prg
+EXCLUSIVE=OFF
+DELETE=ON
+
+
